@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الحضور الذكي QR</title>
+    
+    <!-- الخطوط العربية -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- مكتبة أيقونات -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- مكتبة QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .scanner-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        #reader {
+            width: 100%;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <nav class="bg-indigo-700 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="qr-code" class="w-8 h-8"></i>
+                <h1 class="text-xl font-bold">نظام الحضور الذكي</h1>
+            </div>
+            <button onclick="resetApp()" class="text-xs bg-indigo-800 hover:bg-indigo-900 px-3 py-1 rounded text-white/80">
+                إعادة ضبط النظام
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        
+        <!-- Screen: Role Selection -->
+        <div id="roleSelection" class="max-w-md mx-auto fade-in">
+            <h2 class="text-2xl font-bold text-center mb-8 text-gray-700">من أنت؟</h2>
+            <div class="grid grid-cols-1 gap-6">
+                <button onclick="selectRole('teacher')" class="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-indigo-500 flex items-center gap-4 group">
+                    <div class="bg-indigo-100 p-4 rounded-full group-hover:bg-indigo-600 transition-colors">
+                        <i data-lucide="presentation" class="w-8 h-8 text-indigo-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <div class="text-right">
+                        <h3 class="text-xl font-bold text-gray-800">المحاضر</h3>
+                        <p class="text-sm text-gray-500">إنشاء QR Code ومتابعة الحضور</p>
+                    </div>
+                </button>
+
+                <button onclick="selectRole('student')" class="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-emerald-500 flex items-center gap-4 group">
+                    <div class="bg-emerald-100 p-4 rounded-full group-hover:bg-emerald-600 transition-colors">
+                        <i data-lucide="user-check" class="w-8 h-8 text-emerald-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <div class="text-right">
+                        <h3 class="text-xl font-bold text-gray-800">الطالب</h3>
+                        <p class="text-sm text-gray-500">مسح الكود وتسجيل الحضور</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Screen: Teacher Dashboard -->
+        <div id="teacherDashboard" class="hidden fade-in max-w-4xl mx-auto">
+            <button onclick="goHome()" class="mb-4 flex items-center gap-2 text-indigo-600 hover:text-indigo-800">
+                <i data-lucide="arrow-right" class="w-4 h-4"></i> العودة
+            </button>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Create Session -->
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i>
+                        محاضرة جديدة
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">اسم المادة</label>
+                            <input type="text" id="courseName" placeholder="مثال: برمجة ويب" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <button onclick="generateQR()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">
+                            توليد QR Code
+                        </button>
+                    </div>
+
+                    <!-- QR Display Area -->
+                    <div id="qrDisplayArea" class="hidden mt-8 text-center bg-gray-50 p-6 rounded-xl border border-dashed border-gray-300">
+                        <p class="text-sm text-gray-500 mb-2">امسح الكود لتسجيل الحضور</p>
+                        <img id="qrImage" src="" alt="QR Code" class="mx-auto border-4 border-white shadow-sm rounded-lg w-48 h-48 object-contain bg-white">
+                        <p id="sessionCodeDisplay" class="mt-4 font-mono text-lg font-bold text-indigo-800 bg-indigo-100 inline-block px-4 py-1 rounded"></p>
+                    </div>
+                </div>
+
+                <!-- Live Attendance List -->
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+                            قائمة الحضور
+                        </h2>
+                        <span id="attendanceCount" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded-full">0 طالب</span>
+                    </div>
+                    
+                    <div class="overflow-y-auto max-h-[400px]">
+                        <table class="w-full text-right">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-3 rounded-r-lg">الاسم</th>
+                                    <th class="px-4 py-3">الرقم الجامعي</th>
+                                    <th class="px-4 py-3 rounded-l-lg">الوقت</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody" class="divide-y divide-gray-100">
+                                <!-- Dynamic Rows Here -->
+                                <tr>
+                                    <td colspan="3" class="text-center py-8 text-gray-400">لم يتم تسجيل أي طالب بعد</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen: Student Dashboard -->
+        <div id="studentDashboard" class="hidden fade-in max-w-md mx-auto">
+            <button onclick="goHome()" class="mb-4 flex items-center gap-2 text-indigo-600 hover:text-indigo-800">
+                <i data-lucide="arrow-right" class="w-4 h-4"></i> العودة
+            </button>
+
+            <!-- Step 1: Student Info -->
+            <div id="studentInfoStep" class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-xl font-bold mb-6 text-center">بيانات الطالب</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">الاسم الثلاثي</label>
+                        <input type="text" id="studentName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">الرقم الجامعي</label>
+                        <input type="text" id="studentID" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <button onclick="goToScanner()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
+                        التالي: مسح الكود
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Scanner -->
+            <div id="scannerStep" class="hidden bg-white p-4 rounded-2xl shadow-md">
+                <h2 class="text-lg font-bold mb-4 text-center">وجّه الكاميرا نحو الـ QR Code</h2>
+                
+                <div class="scanner-container bg-black relative mb-4 h-64 flex items-center justify-center">
+                    <div id="reader"></div>
+                    <!-- Placeholder when camera is off -->
+                    <div id="cameraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-white/50">
+                        <i data-lucide="camera-off" class="w-12 h-12 mb-2"></i>
+                        <p class="text-sm">جاري تشغيل الكاميرا...</p>
+                    </div>
+                </div>
+
+                <div id="scanResult" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-center mb-4">
+                    <p class="text-emerald-800 font-bold">تم التسجيل بنجاح!</p>
+                </div>
+
+                <p class="text-xs text-center text-gray-400 mb-4">تأكد من إضاءة جيدة للكود</p>
+                
+                <!-- Manual Simulation Button (For Demo Purposes) -->
+                <div class="border-t pt-4 mt-2">
+                     <p class="text-xs text-center text-gray-400 mb-2">هل تواجه مشكلة في الكاميرا؟ (للتجربة فقط)</p>
+                     <input type="text" id="manualCodeInput" placeholder="أدخل كود الجلسة هنا" class="w-full text-center p-2 border rounded mb-2 text-sm">
+                     <button onclick="handleManualCode()" class="w-full bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300">
+                        تسجيل يدوي
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-2xl text-center max-w-sm mx-4 shadow-2xl transform scale-100 transition-transform">
+            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="check" class="w-10 h-10 text-emerald-600"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2">تم التسجيل!</h3>
+            <p class="text-gray-600 mb-6">تم تسجيل حضورك بنجاح في المحاضرة.</p>
+            <button onclick="closeModal()" class="bg-emerald-600 text-white px-8 py-2 rounded-lg hover:bg-emerald-700 w-full">حسناً</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // --- State Management Simulation ---
+        const DB_KEY = 'attendance_app_db';
+        let currentRole = null;
+        let html5QrcodeScanner = null;
+        let activeSessionId = null; // In real app, this comes from backend
+
+        // Load data safely
+        function getDB() {
+            const data = localStorage.getItem(DB_KEY);
+            return data ? JSON.parse(data) : { sessions: [], attendance: [] };
+        }
+
+        function saveDB(data) {
+            localStorage.setItem(DB_KEY, JSON.stringify(data));
+            // Trigger storage event for other tabs/same window updates
+            window.dispatchEvent(new Event('storage'));
+        }
+
+        // --- Navigation Functions ---
+        function selectRole(role) {
+            currentRole = role;
+            document.getElementById('roleSelection').classList.add('hidden');
+            
+            if (role === 'teacher') {
+                document.getElementById('teacherDashboard').classList.remove('hidden');
+                loadAttendanceList();
+            } else {
+                document.getElementById('studentDashboard').classList.remove('hidden');
+            }
+        }
+
+        function goHome() {
+            // Stop scanner if active
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+            }
+            document.getElementById('teacherDashboard').classList.add('hidden');
+            document.getElementById('studentDashboard').classList.add('hidden');
+            document.getElementById('roleSelection').classList.remove('hidden');
+            currentRole = null;
+        }
+
+        // --- Teacher Logic ---
+        function generateQR() {
+            const courseName = document.getElementById('courseName').value;
+            if (!courseName) {
+                alert('الرجاء إدخال اسم المادة');
+                return;
+            }
+
+            // Generate a unique Session ID
+            const sessionId = 'SESS-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            activeSessionId = sessionId; // For local demo tracking
+
+            // Store session
+            const db = getDB();
+            db.sessions.push({ id: sessionId, course: courseName, timestamp: new Date().toISOString() });
+            saveDB(db);
+
+            // Generate QR Image URL (using api.qrserver.com for demo simplicity)
+            // The QR content is simply the Session ID
+            const qrContent = sessionId;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrContent)}`;
+
+            // Update UI
+            document.getElementById('qrImage').src = qrUrl;
+            document.getElementById('sessionCodeDisplay').innerText = sessionId;
+            document.getElementById('qrDisplayArea').classList.remove('hidden');
+
+            // Reset list view for this new session
+            loadAttendanceList(sessionId);
+        }
+
+        function loadAttendanceList(specificSessionId = null) {
+            // If no specific session is active in the UI yet, try to get the latest one
+            const db = getDB();
+            
+            // In this simple demo, the teacher sees ALL attendance or just the current session
+            // Let's filter by the session currently generated, or show empty if none
+            let currentSessionId = specificSessionId || activeSessionId; 
+            
+            // If page refreshed and we lost variable, try to find the last created session
+            if (!currentSessionId && db.sessions.length > 0) {
+                currentSessionId = db.sessions[db.sessions.length - 1].id;
+                activeSessionId = currentSessionId;
+                // Restore QR view if needed (optional logic)
+            }
+
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = '';
+
+            const records = db.attendance.filter(r => r.sessionId === currentSessionId);
+            document.getElementById('attendanceCount').innerText = `${records.length} طالب`;
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-8 text-gray-400">في انتظار مسح الكود... <br> (رمز الجلسة: ${currentSessionId || 'غير محدد'})</td></tr>`;
+                return;
+            }
+
+            records.forEach(record => {
+                const date = new Date(record.timestamp);
+                const timeStr = date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                
+                const row = `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 font-medium text-gray-800">${record.studentName}</td>
+                        <td class="px-4 py-3 text-gray-600 font-mono text-sm">${record.studentID}</td>
+                        <td class="px-4 py-3 text-gray-500 text-sm">${timeStr}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Listen for storage changes (to update Teacher view when Student scans in another tab)
+        window.addEventListener('storage', () => {
+            if (currentRole === 'teacher') {
+                loadAttendanceList();
+            }
+        });
+
+        // Also simple polling for the single-tab demo experience
+        setInterval(() => {
+            if (currentRole === 'teacher') {
+                loadAttendanceList();
+            }
+        }, 3000);
+
+
+        // --- Student Logic ---
+        function goToScanner() {
+            const name = document.getElementById('studentName').value;
+            const id = document.getElementById('studentID').value;
+
+            if (!name || !id) {
+                alert('الرجاء إدخال البيانات كاملة');
+                return;
+            }
+
+            document.getElementById('studentInfoStep').classList.add('hidden');
+            document.getElementById('scannerStep').classList.remove('hidden');
+
+            startScanner();
+        }
+
+        function startScanner() {
+            // Using Html5Qrcode library
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                // Handle the scanned code
+                processAttendance(decodedText);
+                
+                // Stop scanning
+                html5QrcodeScanner.clear();
+            };
+
+            const qrCodeErrorCallback = (errorMessage) => {
+                // parse error, ignore it.
+            };
+
+            // Request back camera
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, qrCodeSuccessCallback, qrCodeErrorCallback)
+            .then(() => {
+                document.getElementById('cameraPlaceholder').classList.add('hidden');
+            })
+            .catch(err => {
+                console.error("Error starting scanner", err);
+                document.getElementById('cameraPlaceholder').innerHTML = `<p class="text-red-500 text-sm">تعذر فتح الكاميرا.<br>الرجاء استخدام الإدخال اليدوي بالأسفل.</p>`;
+            });
+        }
+
+        function handleManualCode() {
+            const code = document.getElementById('manualCodeInput').value;
+            if (code) processAttendance(code);
+        }
+
+        function processAttendance(sessionId) {
+            // Verify session exists
+            const db = getDB();
+            const sessionExists = db.sessions.find(s => s.id === sessionId);
+
+            if (!sessionExists) {
+                alert('كود المحاضرة غير صحيح أو انتهت صلاحيته!');
+                // If scanner was running, restart it? No, let user retry manually or go back.
+                return;
+            }
+
+            // Check if already attended
+            const studentID = document.getElementById('studentID').value;
+            const alreadyAttended = db.attendance.find(r => r.sessionId === sessionId && r.studentID === studentID);
+
+            if (alreadyAttended) {
+                alert('لقد قمت بتسجيل الحضور مسبقاً!');
+                goHome();
+                return;
+            }
+
+            // Record attendance
+            const newRecord = {
+                sessionId: sessionId,
+                studentName: document.getElementById('studentName').value,
+                studentID: studentID,
+                timestamp: new Date().toISOString()
+            };
+
+            db.attendance.push(newRecord);
+            saveDB(db);
+
+            // Show success
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('successModal').classList.add('hidden');
+            // Reset forms
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentID').value = '';
+            document.getElementById('manualCodeInput').value = '';
+            
+            // Go back to step 1
+            document.getElementById('studentInfoStep').classList.remove('hidden');
+            document.getElementById('scannerStep').classList.add('hidden');
+            
+            goHome();
+        }
+
+        function resetApp() {
+            if(confirm('هل أنت متأكد من حذف جميع البيانات؟')) {
+                localStorage.removeItem(DB_KEY);
+                location.reload();
+            }
+        }
+
+        // Initialize empty DB if not exists
+        if (!localStorage.getItem(DB_KEY)) {
+            saveDB({ sessions: [], attendance: [] });
+        }
+
+    </script>
+</body>
+</html>
